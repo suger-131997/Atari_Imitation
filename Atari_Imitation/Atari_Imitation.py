@@ -57,43 +57,32 @@ def load_traj_prepro(nb_action, p=0.05):
     for traj_num, _ in traj_score[:int(len(traj_score)*p)]:
         print("Now Loading : %s" % traj_num)
 
-        #生データ用リスト
-        traj_list = []
-        act_list = []
-
-        # 前処理後用リスト
-        status = []
-        action = []
-
         #行数取得
         num_lines = sum(1 for line in open(PATH + '/trajectories/' + GAME_NAME + '/' +traj_num + '.txt'))
-        
-        # ヘッダ部分を飛ばす(二行分)
-        f = open(PATH + '/trajectories/' + GAME_NAME + '/' +traj_num + '.txt')
+
+        # 生データ用リスト
+        traj_list = [np.array(Image.open(PATH + '/screens/' + GAME_NAME + "/" + traj_num + "/" +img_file, 'r')) 
+                     for img_file in tqdm(os.listdir(PATH + '/screens/' + GAME_NAME + "/" + traj_num), total=num_lines)]
+        f = open(PATH + '/trajectories/' + GAME_NAME + '/' +traj_num + '.txt') # ヘッダ部分を飛ばす(二行分)
         next(f)
         next(f)
+        act_list = [int(line.split(",")[4]) for line in tqdm(f, total=num_lines)]
+        f.close()
 
-        # screenとactionをロード
-        for img_file, line in tqdm(zip(os.listdir(PATH + '/screens/' + GAME_NAME + "/" + traj_num), f), total=num_lines-2):
-            traj_list.append(np.array(Image.open(PATH + '/screens/' + GAME_NAME + "/" + traj_num + "/" +img_file, 'r')))
-            act_list.append(int(line.split(",")[4]))
-        
-        # 状態前処理
-        print("Now Preprocess : %s" % traj_num)
-        for i in tqdm(range(len(traj_list) // FRAME_SIZE)):
-            # 状態を追加
-            status.append(preprocess(traj_list[i*FRAME_SIZE:i*FRAME_SIZE+4]))
-
-            # 行動を追加
-            act = act_list[i*FRAME_SIZE+3]
-                
-            #データセットのバグに対応
+        #データセットのバグに対応
+        def act_fix(index):
+            act = act_list[index]
             j=0
             while act >= nb_action:
                 j += 1
-                act = act_list[i*FRAME_SIZE+3+j]
+                act = act_list[index+j]
 
-            action.append(act)
+            return act
+
+        # 前処理後用リスト
+        print("Now Preprocess : %s" % traj_num)
+        status = [preprocess(traj_list[i*FRAME_SIZE:i*FRAME_SIZE+4]) for i in range(len(traj_list) // FRAME_SIZE)]
+        action = [act_list[i*FRAME_SIZE+3] if act_list[i*FRAME_SIZE+3] < nb_action == 0 else act_fix(i*FRAME_SIZE+3) for i in range(len(traj_list) // FRAME_SIZE)]
 
         # numpy 変換保存
         status_ary.append(np.array(status))
@@ -114,19 +103,20 @@ def load_traj_prepro(nb_action, p=0.05):
 
     return status, action
 
-def _preprocess(observation):
-    """画像への前処理"""
-    # 画像化
-    img = Image.fromarray(observation)
-    # サイズを入力サイズへ
-    img = img.resize(INPUT_SHAPE)
-    # グレースケールに
-    img = img.convert('L') 
-    # 配列に追加
-    return np.array(img)
-            
 def preprocess(status):
     """状態の前処理"""
+
+    def _preprocess(observation):
+        """画像への前処理"""
+        # 画像化
+        img = Image.fromarray(observation)
+        # サイズを入力サイズへ
+        img = img.resize(INPUT_SHAPE)
+        # グレースケールに
+        img = img.convert('L') 
+        # 配列に追加
+        return np.array(img)
+
     # 状態は4つで1状態
     assert len(status) == FRAME_SIZE
 
