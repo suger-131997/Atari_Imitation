@@ -34,8 +34,12 @@ FRAME_SIZE = 4
 BATCH_SIZE = 128
 EPOCHS = 100
 
-def load_traj(p=0.05):
-    """行動の軌跡の上位pを取得"""
+# 
+
+
+
+def load_traj_prepro(nb_action, p=0.05):
+    """行動の軌跡の上位pを取得し、前処理"""
     traj_score = []
     for traj in os.listdir(PATH + '/trajectories/' + GAME_NAME):
         f = open(PATH + '/trajectories/' + GAME_NAME + '/' + traj, 'r')
@@ -47,11 +51,19 @@ def load_traj(p=0.05):
     # スコアでソート
     traj_score = sorted(traj_score, key=lambda x:x[1], reverse=True)
 
-    # 軌道をロード
-    traj_all = []
+    # 軌道ごとに記録する配列
+    status_ary = []
+    action_ary = []
     for traj_num, _ in traj_score[:int(len(traj_score)*p)]:
-        print("Loading : %s" % traj_num)
-        traj_sub = []
+        print("Now Loading : %s" % traj_num)
+
+        #生データ用リスト
+        traj_list = []
+        act_list = []
+
+        # 前処理後用リスト
+        status = []
+        action = []
 
         #行数取得
         num_lines = sum(1 for line in open(PATH + '/trajectories/' + GAME_NAME + '/' +traj_num + '.txt'))
@@ -63,10 +75,44 @@ def load_traj(p=0.05):
 
         # screenとactionをロード
         for img_file, line in tqdm(zip(os.listdir(PATH + '/screens/' + GAME_NAME + "/" + traj_num), f), total=num_lines-2):
-            traj_sub.append([np.array(Image.open(PATH + '/screens/' + GAME_NAME + "/" + traj_num + "/" +img_file, 'r')), line.split(",")[4]])
-        traj_all.append(traj_sub)
+            traj_list.append(np.array(Image.open(PATH + '/screens/' + GAME_NAME + "/" + traj_num + "/" +img_file, 'r')))
+            act_list.append(int(line.split(",")[4]))
+        
+        # 状態前処理
+        print("Now Preprocess : %s" % traj_num)
+        for i in tqdm(range(len(traj_list) // FRAME_SIZE)):
+            # 状態を追加
+            status.append(preprocess(traj_list[i*FRAME_SIZE:i*FRAME_SIZE+4]))
 
-    return traj_all
+            # 行動を追加
+            act = act_list[i*FRAME_SIZE+3]
+                
+            #データセットのバグに対応
+            j=0
+            while act >= nb_action:
+                j += 1
+                act = act_list[i*FRAME_SIZE+3+j]
+
+            action.append(act)
+
+        # numpy 変換保存
+        status_ary.append(np.array(status))
+        action_ary.append(np.array(action))
+
+        #メモリ対策
+        del traj_list
+        del act_list
+        del status
+        del action
+
+    status = np.empty((0, *INPUT_SHAPE, FRAME_SIZE), 'float32')
+    action = np.array([])
+
+    for s, a in tqdm(zip(status_ary, action_ary)):
+        status = np.append(status, s, axis=0)
+        action = np.append(action, a, axis=0)
+
+    return status, action
 
 def _preprocess(observation):
     """画像への前処理"""
@@ -88,7 +134,7 @@ def preprocess(status):
 
     for i, s in enumerate(status):
         # 配列に追加
-        state[:, :, i] = _preprocess(s[0])
+        state[:, :, i] = _preprocess(s)
 
     # 画素値を0～1に正規化
     state = state.astype('float32') / 255.0
@@ -106,32 +152,14 @@ def build_cnn_model(nb_action):
     model.add(Dense(nb_action, activation="softmax"))
     return model
 
-def tarin(model, nb_action, use_file=True):
+def tarin(model, nb_action, preprocess=True):
     """学習"""
     status = None
     action = None
 
-    if use_file:
-        # 保存済みデータ使用
-        status = np.load('data/status.npy')
-        action = np.load('data/action.npy')
-    else:
-        # 配列宣言
-        status = []
-        action = []
-
-        # 軌跡ロード
-        raw_trajs = load_traj(p=0.01)
-
-        # 状態前処理
-        print("Now Preprocess")
-        for traj in raw_trajs:
-            for i in tqdm(range(len(traj) // FRAME_SIZE)):
-                # 状態を追加
-                status.append(preprocess(traj[i*FRAME_SIZE:i*FRAME_SIZE+4]))
-
-                # 行動を追加
-                action.append(int(traj[i*FRAME_SIZE+3][1]))
+    if preprocess:
+        # 前処理済み軌跡ロード
+        status, action = load_traj_prepro(nb_action)
 
         # numpyに変換
         status = np.array(status)
@@ -139,7 +167,10 @@ def tarin(model, nb_action, use_file=True):
 
         np.save('data/status.npy', status)
         np.save('data/action.npy', action)
-
+    else:
+        # 保存済みデータ使用
+        status = np.load('data/status.npy')
+        action = np.load('data/action.npy')
 
     # モデルのコンパイル
     model.compile(optimizer=Adam(),           
@@ -168,10 +199,10 @@ def test(model, env):
     observation = env.reset()
 
     while True:
-        state = np.empty((*INPUT_SHAPE, FRAME_SIZE), int)
+        state = []
 
         # 初期 or 前回の状態を追加
-        state[:, :, 0] = _preprocess(observation)
+        state.append(observation)
 
         for i in range(1, FRAME_SIZE):
             # 描画
@@ -185,14 +216,14 @@ def test(model, env):
                 break
 
             # 配列に追加
-            state[:, :, i] = _preprocess(observation)
+            state.append(observation)
 
         # 終了
         if done == True:
             break
 
-        # 画素値を0～1に正規化
-        state = state.astype('float32') / 255.0
+        # 状態前処理
+        state = preprocess(state)
 
         # 行動選択
         action = model.predict_on_batch(np.array([state]))
