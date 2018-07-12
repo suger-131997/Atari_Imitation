@@ -1,4 +1,5 @@
 import os
+import time
 
 from PIL import Image
 import numpy as np
@@ -32,7 +33,7 @@ FRAME_SIZE = 4
 
 # 学習用定数
 BATCH_SIZE = 128
-EPOCHS = 100
+EPOCHS = 1
 
 # 
 
@@ -159,7 +160,7 @@ def tarin(model, nb_action, preprocess=True):
 
     if preprocess:
         # 前処理済み軌跡ロード
-        status, action = load_traj_prepro(nb_action)
+        status, action = load_traj_prepro(nb_action, 2.0 /667.0)
 
         # numpyに変換
         status = np.array(status)
@@ -254,4 +255,10 @@ def main():
 
 
 if __name__ == "__main__":
+    #実行時間計測
+    start_time = time.time()
+    
     main()
+
+    execution_time = time.time() - start_time
+    print(execution_time)
