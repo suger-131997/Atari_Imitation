@@ -1,4 +1,5 @@
 import os
+import time
 
 from PIL import Image
 import numpy as np
@@ -32,11 +33,13 @@ FRAME_SIZE = 4
 
 # 学習用定数
 BATCH_SIZE = 128
-EPOCHS = 100
+EPOCHS = 1
 
-# 
+# 軌道利用割合
+USE_TRAJ_RATIO = 2.0 / 667.0
 
-
+# 前処理実行
+RAN_PREPROCESS = True
 
 def load_traj_prepro(nb_action, p=0.05):
     """行動の軌跡の上位pを取得し、前処理"""
@@ -81,8 +84,8 @@ def load_traj_prepro(nb_action, p=0.05):
 
         # 前処理後用リスト
         print("Now Preprocess : %s" % traj_num)
-        status = [preprocess(traj_list[i*FRAME_SIZE:i*FRAME_SIZE+4]) for i in range(len(traj_list) // FRAME_SIZE)]
-        action = [act_list[i*FRAME_SIZE+3] if act_list[i*FRAME_SIZE+3] < nb_action == 0 else act_fix(i*FRAME_SIZE+3) for i in range(len(traj_list) // FRAME_SIZE)]
+        status = [preprocess(traj_list[i*FRAME_SIZE:i*FRAME_SIZE+4]) for i in tqdm(range(len(traj_list) // FRAME_SIZE))]
+        action = [act_list[i*FRAME_SIZE+3] if act_list[i*FRAME_SIZE+3] < nb_action == 0 else act_fix(i*FRAME_SIZE+3) for i in tqdm(range(len(traj_list) // FRAME_SIZE))]
 
         # numpy 変換保存
         status_ary.append(np.array(status))
@@ -94,14 +97,12 @@ def load_traj_prepro(nb_action, p=0.05):
         del status
         del action
 
-    status = np.empty((0, *INPUT_SHAPE, FRAME_SIZE), 'float32')
-    action = np.array([])
-
-    for s, a in tqdm(zip(status_ary, action_ary)):
-        status = np.append(status, s, axis=0)
-        action = np.append(action, a, axis=0)
-
-    return status, action
+    # numpy展開
+    print("Now make batch")
+    status_ary = np.array([item for ary in tqdm(status_ary) for item in ary.tolist()])
+    action_ary = np.array([item for ary in tqdm(action_ary) for item in ary.tolist()])
+    
+    return status_ary, action_ary
 
 def preprocess(status):
     """状態の前処理"""
@@ -149,7 +150,7 @@ def tarin(model, nb_action, preprocess=True):
 
     if preprocess:
         # 前処理済み軌跡ロード
-        status, action = load_traj_prepro(nb_action)
+        status, action = load_traj_prepro(nb_action, USE_TRAJ_RATIO)
 
         # numpyに変換
         status = np.array(status)
@@ -170,13 +171,9 @@ def tarin(model, nb_action, preprocess=True):
     # テンソルボード
     tb = TensorBoard(log_dir="./logs")
 
-    # データセットのバグに対応
-    ary = np.asarray(action)
-    ary = np.where(ary >= nb_action, 0, ary)
-
     # 学習
     history = model.fit(status, 
-                        np_utils.to_categorical(ary, nb_action),                  
+                        np_utils.to_categorical(action, nb_action),                  
                         batch_size=BATCH_SIZE,                       
                         epochs=EPOCHS,                                
                         callbacks=[tb])
@@ -237,11 +234,17 @@ def main():
     model = build_cnn_model(env.action_space.n)
 
     # モデル学習
-    tarin(model, env.action_space.n)
+    tarin(model, env.action_space.n, RAN_PREPROCESS)
 
     # テスト
     test(model, env)
 
 
 if __name__ == "__main__":
+    #実行時間計測
+    start_time = time.time()
+    
     main()
+
+    execution_time = time.time() - start_time
+    print(execution_time)
