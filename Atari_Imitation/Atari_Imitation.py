@@ -99,12 +99,6 @@ def load_traj_prepro(nb_action, p=0.05):
 
     # numpy展開
     print("Now make batch")
-    #status = np.empty((0, *INPUT_SHAPE, FRAME_SIZE), 'float32')
-    #action = np.array([])
-
-    #for s, a in tqdm(zip(status_ary, action_ary), total=len(status_ary)):
-    #    status = np.concatenate((status, s), axis=0)
-    #    action = np.concatenate((action, a), axis=0)
     status = np.concatenate(status_ary, axis=0)
     action = np.concatenate(action_ary, axis=0)
 
