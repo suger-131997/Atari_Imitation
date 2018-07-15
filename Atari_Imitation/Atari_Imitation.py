@@ -33,7 +33,7 @@ FRAME_SIZE = 4
 
 # 学習用定数
 BATCH_SIZE = 128
-EPOCHS = 100
+EPOCHS = 1
 
 # 軌道利用割合
 USE_TRAJ_RATIO = 0.05
