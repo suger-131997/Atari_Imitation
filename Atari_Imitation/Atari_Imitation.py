@@ -33,13 +33,13 @@ FRAME_SIZE = 4
 
 # 学習用定数
 BATCH_SIZE = 128
-EPOCHS = 1
+EPOCHS = 100
 
 # 軌道利用割合
-USE_TRAJ_RATIO = 2.0 / 667.0
+USE_TRAJ_RATIO = 0.05
 
 # 前処理実行
-RAN_PREPROCESS = True
+RAN_PREPROCESS = False
 
 def load_traj_prepro(nb_action, p=0.05):
     """行動の軌跡の上位pを取得し、前処理"""
@@ -99,10 +99,16 @@ def load_traj_prepro(nb_action, p=0.05):
 
     # numpy展開
     print("Now make batch")
-    status_ary = np.array([item for ary in tqdm(status_ary) for item in ary.tolist()])
-    action_ary = np.array([item for ary in tqdm(action_ary) for item in ary.tolist()])
-    
-    return status_ary, action_ary
+    #status = np.empty((0, *INPUT_SHAPE, FRAME_SIZE), 'float32')
+    #action = np.array([])
+
+    #for s, a in tqdm(zip(status_ary, action_ary), total=len(status_ary)):
+    #    status = np.concatenate((status, s), axis=0)
+    #    action = np.concatenate((action, a), axis=0)
+    status = np.concatenate(status_ary, axis=0)
+    action = np.concatenate(action_ary, axis=0)
+
+    return status, action
 
 def preprocess(status):
     """状態の前処理"""
