@@ -4,5 +4,7 @@
 
 /Atari_Imitation/data
 /Atari_Imitation/logs
-/Atari_Imitation/movie_folder
-/Atari_Imitation/data_5
+/Atari_Imitation/movie_folder*
+/Atari_Imitation/data*
+/.vs
+/Atari_Imitation.sln
