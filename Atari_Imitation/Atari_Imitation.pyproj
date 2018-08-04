@@ -11,7 +11,11 @@
     <OutputPath>.</OutputPath>
     <Name>Atari_Imitation</Name>
     <RootNamespace>Atari_Imitation</RootNamespace>
-    <InterpreterId>Global|VisualStudio|OAIGym</InterpreterId>
+    <InterpreterId>CondaEnv|CondaEnv|gym_keras</InterpreterId>
+    <IsWindowsApplication>False</IsWindowsApplication>
+    <LaunchProvider>Standard Python launcher</LaunchProvider>
+    <CommandLineArguments>"D:atari_v2_release"   --epoch 15 -b 128  --raito 0.02</CommandLineArguments>
+    <EnableNativeCodeDebugging>False</EnableNativeCodeDebugging>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
     <DebugSymbols>true</DebugSymbols>
@@ -25,7 +29,7 @@
     <Compile Include="Atari_Imitation.py" />
   </ItemGroup>
   <ItemGroup>
-    <InterpreterReference Include="Global|VisualStudio|OAIGym" />
+    <InterpreterReference Include="CondaEnv|CondaEnv|gym_keras" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
   <!-- Uncomment the CoreCompile target to enable the Build command in
