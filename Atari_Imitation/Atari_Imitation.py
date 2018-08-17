@@ -4,11 +4,11 @@ import argparse
 
 import numpy as np
 
-from keras import Sequential, Input, Model
+from keras import Sequential
 from keras.callbacks import TensorBoard
 from keras.layers import Flatten, Dense, Conv2D, MaxPooling2D, Activation, BatchNormalization
 from keras.optimizers import SGD, Adam
-from keras.utils import np_utils
+from keras.utils import np_utils, plot_model
 from keras import backend as K
 
 import gym
@@ -24,7 +24,7 @@ PATH = None
 
 # 学習用定数
 BATCH_SIZE = 128
-EPOCHS = 15
+EPOCHS = 20
 
 # 軌道利用割合
 USE_TRAJ_RATIO = 0.01
@@ -40,9 +40,9 @@ USE_CLASS_WEIGHT = False
 def build_cnn_model(nb_action):
     """CNNモデル構築"""
     model = Sequential()
-    model.add(Conv2D(filters=32, kernel_size=(8, 8), strides=(4, 4), activation="relu", padding="same", input_shape=(*INPUT_SHAPE, FRAME_SIZE)))
-    model.add(Conv2D(filters=64, kernel_size=(4, 4), strides=(2, 2), activation="relu", padding="same"))
-    model.add(Conv2D(filters=64, kernel_size=(3, 3), strides=(1, 1), activation="relu", padding="same"))
+    model.add(Conv2D(filters=32, kernel_size=(8, 8), strides=(4, 4), activation="relu", input_shape=(*INPUT_SHAPE, FRAME_SIZE)))
+    model.add(Conv2D(filters=64, kernel_size=(4, 4), strides=(2, 2), activation="relu"))
+    model.add(Conv2D(filters=64, kernel_size=(3, 3), strides=(1, 1), activation="relu"))
     model.add(Flatten())
     model.add(Dense(512, activation="relu"))
     model.add(Dense(nb_action, activation="softmax"))
@@ -82,6 +82,9 @@ def tarin(model, nb_action, preprocess=True):
                     loss="categorical_crossentropy",                 
                     metrics=["accuracy"])
 
+    #モデル保存
+    #plot_model(model, 'model.png', show_shapes=True)
+
     # テンソルボード
     tb = TensorBoard(log_dir="./logs")
 
@@ -89,8 +92,11 @@ def tarin(model, nb_action, preprocess=True):
     weight = None
     if USE_CLASS_WEIGHT:
         unique, count = np.unique(action, return_counts=True)
+        print(unique)
+        print(count)
         weight = np.max(count) / count
         weight = dict(zip(unique, weight))
+        print(weight)
 
     # 学習
     history = model.fit(status, 
@@ -132,13 +138,14 @@ def test(model, env):
             break
 
         # 状態前処理
-        state = preprocess(state)
+        state = preprocess(state, FRAME_SIZE)
 
         # 行動選択
         action = model.predict_on_batch(np.array([state]))
+        action = np.argmax(action[0])
 
         # 行動
-        observation, _, done, _ = env.step(np.argmax(action))
+        observation, _, done, _ = env.step(action)
             
         #終了
         if done == True:

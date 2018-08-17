@@ -25,8 +25,7 @@ Qbertのaction
 """
 act_trans_list = (0,1,2,3,4,5,2,2,3,4,2,3,4,5,2,2,3,4)
 
-
-def load_traj_prepro(path, nb_action, p=0.01, concat=True):
+def load_traj_prepro(path, nb_action, p=0.01, concat=True, frame_size=FRAME_SIZE):
     """行動の軌跡の上位pを取得し、前処理"""
     traj_score = []
     for traj in os.listdir(path + '/trajectories/' + GAME_NAME):
@@ -46,14 +45,16 @@ def load_traj_prepro(path, nb_action, p=0.01, concat=True):
         print("Now Loading : %s" % traj_num)
         # データロード
         df = pd.read_csv(path + '/trajectories/' + GAME_NAME + '/' +traj_num + '.txt', skiprows=1)
-        traj_list = [np.array(Image.open(path + '/screens/' + GAME_NAME + '/' + traj_num + '/' +img_file + '.png', 'r')) for img_file in tqdm(df['frame'].astype('str').values.tolist())]
+        traj_list = [np.array(Image.open(path + '/screens/' + GAME_NAME + '/' + traj_num + '/' +img_file + '.png', 'r')) 
+                     for img_file in tqdm(df['frame'].astype('str').values.tolist())]
         act_list = df['action'].astype('int8').values.tolist()
 
         # 前処理
         print("Now Preprocess : %s" % traj_num)
 
-        status = np.concatenate([preprocess(traj_list[i:i+4], False, False)[np.newaxis, :, :, :] for i in tqdm(range(len(traj_list) // FRAME_SIZE))], axis=0)
-        action = [act_trans_list[act_list[i+3]] for i in tqdm(range(len(traj_list) // FRAME_SIZE))]
+        status = np.concatenate([preprocess(traj_list[i:i+frame_size], frame_size, False, False)[np.newaxis, :, :, :] 
+                                 for i in tqdm(range(len(traj_list) // frame_size))], axis=0)
+        action = [act_trans_list[act_list[i+(frame_size-1)]] for i in tqdm(range(len(traj_list) // frame_size))]
         
 
         status_ary.append(status)
@@ -70,7 +71,7 @@ def load_traj_prepro(path, nb_action, p=0.01, concat=True):
 
     if concat:
         # numpy展開
-        print("Now make batch")
+        print("Now Concatenate")
         status = np.concatenate(status_ary, axis=0)
         del status_ary
         action = np.concatenate(action_ary, axis=0)
@@ -78,7 +79,7 @@ def load_traj_prepro(path, nb_action, p=0.01, concat=True):
 
         # 状態正規化
         status = status.astype('float32') / 255.0
-        print("End make batch")
+        print("End Concatenate")
     else:
         status = [s.astype('float32') / 255.0 for s in status_ary]
         del status_ary
@@ -87,7 +88,7 @@ def load_traj_prepro(path, nb_action, p=0.01, concat=True):
 
     return status, action
 
-def preprocess(status, tof=True, tol=True):
+def preprocess(status, frame_size, tof=True, tol=True):
     """状態の前処理"""
 
     def _preprocess(observation):
@@ -102,9 +103,9 @@ def preprocess(status, tof=True, tol=True):
         return np.array(img)
 
     # 状態は4つで1状態
-    assert len(status) == FRAME_SIZE
+    assert len(status) == frame_size
 
-    state = np.empty((*INPUT_SHAPE, FRAME_SIZE), 'int8')
+    state = np.empty((*INPUT_SHAPE, frame_size), 'int8')
 
     for i, s in enumerate(status):
         # 配列に追加
