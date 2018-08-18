@@ -6,6 +6,7 @@
 /Atari_Imitation/logs
 /Atari_Imitation/movie_folder*
 /Atari_Imitation/data*
+/Atari_Imitation/*.h5
 /.vs
 /Atari_Imitation.sln
 /Atari_Imitation/run.bat

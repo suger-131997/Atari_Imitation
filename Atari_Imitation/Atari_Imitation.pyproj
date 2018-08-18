@@ -14,7 +14,7 @@
     <InterpreterId>CondaEnv|CondaEnv|gym_keras</InterpreterId>
     <IsWindowsApplication>False</IsWindowsApplication>
     <LaunchProvider>Standard Python launcher</LaunchProvider>
-    <CommandLineArguments>"D:atari_v2_release"    --epoch 20 -cw -b 128  --raito 0.01</CommandLineArguments>
+    <CommandLineArguments>"D:atari_v2_release"    --epoch 20 -cw -b 128  --raito 0.01 --test</CommandLineArguments>
     <EnableNativeCodeDebugging>False</EnableNativeCodeDebugging>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">

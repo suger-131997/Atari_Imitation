@@ -10,6 +10,7 @@ from keras.layers import Flatten, Dense, Conv2D, MaxPooling2D, Activation, Batch
 from keras.optimizers import SGD, Adam
 from keras.utils import np_utils, plot_model
 from keras import backend as K
+from keras.models import load_model
 
 import gym
 from gym import wrappers
@@ -35,7 +36,8 @@ RUN_PREPROCESS = False
 # ラベルごとの重み適用
 USE_CLASS_WEIGHT = False
 
-
+# テストのみ実行
+TEST_ONLY = False
 
 def build_cnn_model(nb_action):
     """CNNモデル構築"""
@@ -92,11 +94,11 @@ def tarin(model, nb_action, preprocess=True):
     weight = None
     if USE_CLASS_WEIGHT:
         unique, count = np.unique(action, return_counts=True)
-        print(unique)
-        print(count)
+        #print(unique)
+        #print(count)
         weight = np.max(count) / count
         weight = dict(zip(unique, weight))
-        print(weight)
+        #print(weight)
 
     # 学習
     history = model.fit(status, 
@@ -159,11 +161,20 @@ def main():
     # 動画保存
     env = wrappers.Monitor(env, './movie_folder_' + str(USE_TRAJ_RATIO) + '_' + str(EPOCHS) +'_' + str(BATCH_SIZE) + ('_CW' if USE_CLASS_WEIGHT else ''), video_callable=(lambda ep: True), force=True)
     
-    # モデル構築
-    model = build_cnn_model(env.action_space.n)
+    model = None
+    
+    if TEST_ONLY:
+        # モデルロード
+        model = load_model('model_' + str(USE_TRAJ_RATIO) + '_' + str(EPOCHS) +'_' + str(BATCH_SIZE) + ('_CW' if USE_CLASS_WEIGHT else '') +'.h5')
+    else:
+        # モデル構築
+        model = build_cnn_model(env.action_space.n)
 
-    # モデル学習
-    tarin(model, env.action_space.n, RUN_PREPROCESS)
+        # モデル学習
+        tarin(model, env.action_space.n, RUN_PREPROCESS)
+
+        # モデル保存
+        model.save('model_' + str(USE_TRAJ_RATIO) + '_' + str(EPOCHS) +'_' + str(BATCH_SIZE) + ('_CW' if USE_CLASS_WEIGHT else '') +'.h5')
 
     # テスト
     test(model, env)
@@ -179,6 +190,7 @@ if __name__ == "__main__":
     parser.add_argument('-p', '--preprocess', action="store_true")
     parser.add_argument('-cw', '--classweight', action="store_true")
     parser.add_argument('--raito', type=float, default=0.01)
+    parser.add_argument('--test', action="store_true")
     args = parser.parse_args()
 
     PATH = args.path
@@ -187,6 +199,7 @@ if __name__ == "__main__":
     RUN_PREPROCESS = args.preprocess
     USE_CLASS_WEIGHT = args.classweight
     USE_TRAJ_RATIO = args.raito
+    TEST_ONLY = args.test
 
     #実行時間計測
     start_time = time.time()
