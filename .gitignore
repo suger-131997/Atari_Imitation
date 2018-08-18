@@ -7,6 +7,7 @@
 /Atari_Imitation/movie_folder*
 /Atari_Imitation/data*
 /Atari_Imitation/*.h5
+/Atari_Imitation/*.pyproj
 /.vs
 /Atari_Imitation.sln
 /Atari_Imitation/run.bat
